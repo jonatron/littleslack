@@ -1,0 +1,25 @@
+{
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "manifest_version": 2,
+  "version": "1.0",
+  "name": "littleslack",
+  "web_accessible_resources": ["ui.html", "ui.js"],
+  "content_security_policy": "script-src 'self'; object-src 'self'; img-src 'self'",
+  "content_scripts": [
+  {
+    "matches": ["*://app.slack.com/robots.txt"],
+    "js": ["robots_cs.js"]
+  }
+  ],
+  "permissions": [
+    "cookies",
+    "webRequest",
+    "webRequestBlocking",
+    "https://app.slack.com/*",
+    "https://*.slack.com/*",
+    "https://slack.com/*",
+    "*://slack.com/"
+  ]
+}
