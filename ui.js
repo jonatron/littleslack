@@ -142,12 +142,13 @@ function getUsers() {
       token: token,
       // channels
       // filter
+      count: 1000,
     };
     oReq.send(JSON.stringify(json));
 }
 
 function getAvatar(user, size) {
-  return "https://ca.slack-edge.com/" + team + "-" + user+ "-" + users[user].profile.avatar_hash  + "-" + size;
+    return "https://ca.slack-edge.com/" + team + "-" + user + "-" + users[user].profile.avatar_hash  + "-" + size;
 }
 
 function renderMessages(messages) {
@@ -156,6 +157,10 @@ function renderMessages(messages) {
     for(var message of messages) {
       if(document.getElementById(message.client_msg_id)) {
         return;
+      }
+      if(!users[message.user]) {
+        console.log("TODO: user not in users")
+        continue;
       }
       var avatar = getAvatar(message.user, 48);
       var name = users[message.user].name;
@@ -190,7 +195,7 @@ function renderMessages(messages) {
             }
           }
         }
-        message_text = message_text.replaceAll("\n", "<br>")
+        message_text = message_text.replace(/\n/g, "<br>")
       }
       var message_html = `
         <img src="${avatar}" class="message_avatar">
