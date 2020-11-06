@@ -15,26 +15,56 @@
         width: 100%;
     }
 
-    table {
-        width: 100%;
-        height: 100%;
-        border-collapse: collapse;
-    }
-
     li {
         list-style-type: none;
     }
 
-    #channel_list {
-        padding: 0 0 0 10px;
-    }
-
     #header {
         height: 40px;
+        width: 100%;
         background-color: #350d36;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
     }
+
+
     #sidebar {
         background-color: #3F0E40;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        box-sizing: border-box;
+        width: 220px;
+        color: #ffffff;
+        vertical-align: top;
+        z-index: 1;
+    }
+    #sidebar ul {
+        padding: 0;
+    }
+    #sidebar li {
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+    #sidebar li, #sidebar h5 {
+        padding-left: 15px;
+    }
+    #sidebar li:hover {
+        background-color: #350d36;
+        cursor: pointer;
+    }
+    .sidebar_avatar {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+    }
+
+
+    #workspace_name {
+        padding-top: 60px;
     }
 
     #search {
@@ -42,27 +72,46 @@
         width: 30%;
         margin-left: auto;
         margin-right: auto;
+        margin-top: 8px;
         background-color: rgb(53, 13, 54);
         color: #ffffff;
         border: 1px solid rgb(154,134,155);
     }
 
 
-    #sidebar {
-        width: 205px; /* 220 - padding */
-        padding-top: 25px;
-        padding-left: 15px;
-        color: #ffffff;
-        vertical-align: top;
+    #main_wrap {
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        padding-top: 100px;
+        padding-bottom: 100px;
+        padding-left: 220px;
+        position: absolute;
+        top: 0px;
     }
-    #main {
-        vertical-align: top;
-        padding: 15px;
+    #channel_chat {
+        height: 100%;
+        overflow-y: scroll;
+    }
+    #channel_header {
+        position: absolute;
+        top: 50px;
+        padding-left: 232px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    #add {
+        border-bottom: 1px solid #ececec;
     }
     #channel_input {
         height: 40px;
+        position: absolute;
+        bottom: 0;
+        width: 100%;
     }
-
+    .shift_left {
+        margin-left: 220px;
+    }
     #input {
         display: block;
         margin-left: auto;
@@ -70,7 +119,6 @@
         width: 96%;
         background-color: #ffffff;
         padding: 8px;
-        margin-bottom: 10px;
     }
 
     h1,h2,h3,h4,h5,h6 {
@@ -87,6 +135,10 @@
 
     .message {
         clear: both;
+        margin-left: 12px;
+    }
+    .message:hover {
+        background-color: #eaeaea;
     }
     .message_avatar {
         width: 48px;
@@ -96,6 +148,9 @@
         margin-bottom: 12px;
         float: left;
     }
+    .message_right {
+        margin-left: 60px;
+    }
     .message_user {
         text-decoration: none;
         font-weight: bold;
@@ -104,69 +159,60 @@
     .message_user:hover {
         text-decoration: underline;
     }
-    .message_right {
-        display: block;
-        float: left;
-    }
 
 
 
     </style>
     <script type="text/javascript">
-
-console.log("no worky");
+        console.log("no worky");
     </script>
   </head>
   <body>
 
-    <table>
-        <tr>
-            <td id="header" colspan="2">
-                <input type="text" id="search" placeholder="search">
-            </td>
-        </tr>
-        <tr>
-            <td id="sidebar" rowspan="2">
-                <h5 id="workspace_name">Workspace</h5>
+    <div id="header">
+        <input type="text" id="search" placeholder="search">
+    </div>
 
-                <h5>Channels</h5>
+    <div id="sidebar">
+        <h5 id="workspace_name">Workspace</h5>
 
-                <ul id="channel_list">
-                    
-                </ul>
+        <h5>Channels</h5>
 
-                <h5>Direct Messages</h5>
+        <ul id="channel_list">
+            
+        </ul>
 
-                <ul id="direct_message_list">
-                    <li></li>
-                </ul>
+        <h5>Direct Messages</h5>
 
-                <h5>Apps</h5>
+        <ul id="direct_message_list">
+            <li></li>
+        </ul>
 
-                <ul id="app_list">
-                    <li></li>
-                </ul>
-            </td>
-            <td id="main">
-                <div id="channel_header">
-                    <h5 id="channel_name">#channel_name</h2>
-                    <h5 id="topic">topic</h6>
-                    <div id="members"></div>
-                    <div id="add"></div>
-                </div>
-                <div id="channel_chat">
-                    
-                </div>
-            </td>
-        </tr>
-        <tr>
-            <td id="channel_input">
-                <div>
-                    <input type="text" id="input" placeholder="send a message">
-                </div>
-            </td>
-        </tr>
-    </table>
+        <h5>Apps</h5>
+
+        <ul id="app_list">
+            <li></li>
+        </ul>
+    </div>
+
+    <div id="channel_header">
+        <h5 id="channel_name">#channel_name</h5>
+        <h5 id="topic">topic</h5>
+        <div id="members"></div>
+        <div id="add"></div>
+    </div>
+
+    <div id="main_wrap">
+        <div id="channel_chat">
+            
+        </div>
+    </div>
+
+    <div id="channel_input">
+        <div class="shift_left">
+            <input type="text" id="input" placeholder="send a message">
+        </div>
+    </div>
 
   </body>
 </html>
