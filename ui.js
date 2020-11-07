@@ -6,7 +6,7 @@ var team = config.lastActiveTeamId;
 var token = config.teams[team].token;
 var users = {};
 var team_url = config.teams[team].url;
-var current_channel
+var current_channel;
 var gbl_websocket_url;
 var chat = document.getElementById('channel_chat');
 
@@ -38,6 +38,7 @@ function boot() {
     document.getElementById('channel_list').addEventListener("click", function(event) {
       console.log("click channel", event);
       console.log("click channel id", event.target.dataset.id);
+      current_channel = event.target.dataset.id;
       // joinChannel(event.target.dataset.id);
       document.getElementById('channel_name').innerHTML = "#" + event.target.dataset.name;
       document.getElementById('topic').innerHTML = event.target.dataset.topic;
@@ -273,13 +274,29 @@ function renderMessages(messages, history) {
 
 }
 
-// function joinChannel(channel) {
-//   var oReq = new XMLHttpRequest();
-//   oReq.addEventListener("load", function () {
-//     console.log("joinChannel");
-//     var resp = JSON.parse(this.responseText);
-//     console.log(resp);
-//   });
-//   oReq.open("GET", "https://slack.com/api/conversations.join?token=" + token + "&channel=" + channel);
-//   oReq.send();
-// }
+var channel_input_bottom = parseInt(getComputedStyle(document.getElementById('channel_input')).bottom.replace("px", ""));
+var input = document.getElementById('input')
+document.getElementById('input').addEventListener("keypress", function(event) {
+  console.log("keypress event", event);
+  // shift+enter grow
+  if(event.key == "Enter" && event.shiftKey) {
+    if(input.rows < 10) {
+      input.rows++;
+      channel_input_bottom += 16;
+      document.getElementById('channel_input').style.bottom = channel_input_bottom + "px";
+    }
+  } else if(event.key == "Enter" && !event.shiftKey) {
+    sendMessage(input.value);
+    input.value = ""
+    input.style.bottom = "30px";
+  }
+})
+
+function sendMessage(message) {
+  sendSocket({
+    type: "message",
+    id: gbl_message_id++,
+    text: message,
+    channel: current_channel,
+  });
+}
