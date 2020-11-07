@@ -22,29 +22,29 @@ document.getElementById('workspace_name').innerHTML = config.teams[team].name;
 function boot() {
   var boot_url = team_url + "api/client.boot?_x_id=noversion-1601417315.857&_x_version_ts=noversion&_x_gantry=true";
   var oReq = new XMLHttpRequest();
-  oReq.addEventListener("load", function () {
-      console.log("bootListener");
-      var resp = JSON.parse(this.responseText);
-      console.log(resp);
-      var channel_html = "";
-      for(var channel of resp.channels) {
-        channel_html += `<li data-id="${channel.id}" data-topic="${channel.topic.value}" data-name="${channel.name}"><span>#</span> ${channel.name}</li>`;
-      }
-      current_channel = resp.channels[0].id;
-      document.getElementById('channel_name').innerHTML = "#" + resp.channels[0].name;
-      document.getElementById('topic').innerHTML = resp.channels[0].topic.value;
-      document.getElementById('channel_list').innerHTML = channel_html;
-      gbl_websocket_url = resp.url;
-      document.getElementById('channel_list').addEventListener("click", function(event) {
-        console.log("click channel", event);
-        console.log("click channel id", event.target.dataset.id);
-        // joinChannel(event.target.dataset.id);
-        document.getElementById('channel_name').innerHTML = "#" + event.target.dataset.name;
-        document.getElementById('topic').innerHTML = event.target.dataset.topic;
-        document.getElementById('channel_chat').innerHTML = "";
-        getConversationHistory(event.target.dataset.id);
-      });
-      getUsers();
+  oReq.addEventListener("load", function() {
+    console.log("bootListener");
+    var resp = JSON.parse(this.responseText);
+    console.log(resp);
+    var channel_html = "";
+    for (var channel of resp.channels) {
+      channel_html += `<li data-id="${channel.id}" data-topic="${channel.topic.value}" data-name="${channel.name}"><span>#</span> ${channel.name}</li>`;
+    }
+    current_channel = resp.channels[0].id;
+    document.getElementById('channel_name').innerHTML = "#" + resp.channels[0].name;
+    document.getElementById('topic').innerHTML = resp.channels[0].topic.value;
+    document.getElementById('channel_list').innerHTML = channel_html;
+    gbl_websocket_url = resp.url;
+    document.getElementById('channel_list').addEventListener("click", function(event) {
+      console.log("click channel", event);
+      console.log("click channel id", event.target.dataset.id);
+      // joinChannel(event.target.dataset.id);
+      document.getElementById('channel_name').innerHTML = "#" + event.target.dataset.name;
+      document.getElementById('topic').innerHTML = event.target.dataset.topic;
+      document.getElementById('channel_chat').innerHTML = "";
+      getConversationHistory(event.target.dataset.id);
+    });
+    getUsers();
   });
   oReq.withCredentials = true;
   oReq.open("POST", boot_url);
@@ -62,173 +62,176 @@ boot();
 
 
 function websocketMessage(event) {
-    var resp = JSON.parse(event.data);
-    console.log('Message from server ', resp);
-    if(resp.type == "message") {
-      renderMessages([resp], false)
-    } else {
-      console.log("TODO: unhandled message type: ", resp.type)
-    }
+  var resp = JSON.parse(event.data);
+  console.log('Message from server ', resp);
+  if (resp.type == "message") {
+    renderMessages([resp], false)
+  } else {
+    console.log("TODO: unhandled message type: ", resp.type)
+  }
 
 };
 
 function sendSocket(messageObj) {
-    gbl_websocket.send(JSON.stringify(messageObj));
+  gbl_websocket.send(JSON.stringify(messageObj));
 }
 
 function websocketPing() {
-    sendSocket({type: "ping", id: gbl_message_id++});
+  sendSocket({
+    type: "ping",
+    id: gbl_message_id++
+  });
 }
 
 function startWebsocket() {
-    console.log("gbl_websocket_url", gbl_websocket_url);
-    gbl_websocket = new WebSocket(gbl_websocket_url);
-    gbl_websocket.addEventListener('message', websocketMessage);
-    setInterval(websocketPing, 3000);
+  console.log("gbl_websocket_url", gbl_websocket_url);
+  gbl_websocket = new WebSocket(gbl_websocket_url);
+  gbl_websocket.addEventListener('message', websocketMessage);
+  setInterval(websocketPing, 3000);
 }
 
 
 function getConversationHistory(channel) {
-    var url = team_url + "api/conversations.history?_x_version_ts=1604346880&_x_gantry=true";
-    var oReq = new XMLHttpRequest();
-    oReq.addEventListener("load", function () {
-        console.log("getConversationHistory");
-        var resp = JSON.parse(this.responseText);
-        console.log(resp);
-        renderMessages(resp.messages, true);
-        startWebsocket();
-    });
-    oReq.withCredentials = true;
-    oReq.open("POST", url);
-    var body = new FormData();
-    body.append("token", token);
-    body.append("channel", channel);
-    oReq.send(body);
+  var url = team_url + "api/conversations.history?_x_version_ts=1604346880&_x_gantry=true";
+  var oReq = new XMLHttpRequest();
+  oReq.addEventListener("load", function() {
+    console.log("getConversationHistory");
+    var resp = JSON.parse(this.responseText);
+    console.log(resp);
+    renderMessages(resp.messages, true);
+    startWebsocket();
+  });
+  oReq.withCredentials = true;
+  oReq.open("POST", url);
+  var body = new FormData();
+  body.append("token", token);
+  body.append("channel", channel);
+  oReq.send(body);
 }
 
 function getUsers() {
-    var url = "https://edgeapi.slack.com/cache/" + team + "/users/list";
-    var oReq = new XMLHttpRequest();
-    oReq.addEventListener("load", function () {
-        console.log("getUsers");
-        var resp = JSON.parse(this.responseText);
-        console.log(resp);
-        var users_html = "";
-        var bot_html = "";
-        for(var user of resp.results) {
-            users[user.id] = user;
-            var avatar = getAvatar(user.id, 28);
-            var li = `<li data-id="${user.id}"><img class="sidebar_avatar" src="${avatar}">${user.name}</li>`;
-            if(user.is_bot) {
-              bot_html += li;
-            } else {
-              users_html += li;
-            }
-        }
-        document.getElementById("direct_message_list").innerHTML = users_html;
-        document.getElementById("app_list").innerHTML = bot_html;
-        var user_click = function(event) {
-          console.log("click user", event);
-          console.log("click user id", event.target.dataset.id);
+  var url = "https://edgeapi.slack.com/cache/" + team + "/users/list";
+  var oReq = new XMLHttpRequest();
+  oReq.addEventListener("load", function() {
+    console.log("getUsers");
+    var resp = JSON.parse(this.responseText);
+    console.log(resp);
+    var users_html = "";
+    var bot_html = "";
+    for (var user of resp.results) {
+      users[user.id] = user;
+      var avatar = getAvatar(user.id, 28);
+      var li = `<li data-id="${user.id}"><img class="sidebar_avatar" src="${avatar}">${user.name}</li>`;
+      if (user.is_bot) {
+        bot_html += li;
+      } else {
+        users_html += li;
+      }
+    }
+    document.getElementById("direct_message_list").innerHTML = users_html;
+    document.getElementById("app_list").innerHTML = bot_html;
+    var user_click = function(event) {
+      console.log("click user", event);
+      console.log("click user id", event.target.dataset.id);
 
-        };
-        document.getElementById('direct_message_list').addEventListener("click", user_click);
-        document.getElementById('app_list').addEventListener("click", user_click);
-        getConversationHistory(current_channel);
-    });
-    oReq.withCredentials = true;
-    oReq.open("POST", url);
-
-    oReq.setRequestHeader('Content-Type', 'application/json');
-    var json = {
-      token: token,
-      // channels
-      // filter
-      count: 1000,
     };
-    oReq.send(JSON.stringify(json));
+    document.getElementById('direct_message_list').addEventListener("click", user_click);
+    document.getElementById('app_list').addEventListener("click", user_click);
+    getConversationHistory(current_channel);
+  });
+  oReq.withCredentials = true;
+  oReq.open("POST", url);
+
+  oReq.setRequestHeader('Content-Type', 'application/json');
+  var json = {
+    token: token,
+    // channels
+    // filter
+    count: 1000,
+  };
+  oReq.send(JSON.stringify(json));
 }
 
 function getAvatar(user, size) {
-    return "https://ca.slack-edge.com/" + team + "-" + user + "-" + users[user].profile.avatar_hash  + "-" + size;
+  return "https://ca.slack-edge.com/" + team + "-" + user + "-" + users[user].profile.avatar_hash + "-" + size;
 }
 
 function renderMessages(messages, history) {
 
-    for(var message of messages) {
-      if(document.getElementById(message.client_msg_id)) {
-        continue;
-      }
-      if(!users[message.user]) {
-        console.log("TODO: user not in users")
-        continue;
-      }
-      var avatar = getAvatar(message.user, 48);
-      var name = users[message.user].name;
-      var date = new Date(new Number(message.ts) * 1000).toString();
-      var message_text = message.text;
-      if(message.blocks) {
-        message_text = "";
-        for(var block of message.blocks) {
-          for(var element of block.elements) {
-            // eg type: rich_text
-            for(var sub_element of element.elements) {
-              // eg type: rich_text_section
-              if(sub_element.type == "text") {
-                start_wrap = "";
-                end_wrap = "";
-                if(sub_element.style) {
-                  if(sub_element.style.bold) {
-                    start_wrap += "<b>";
-                    end_wrap += "</b>";
-                  }
-                  if(sub_element.style.italic) {
-                    start_wrap += "<i>";
-                    end_wrap += "</i>";
-                  }
-                  if(sub_element.style.code) {
-                    start_wrap += "<pre>";
-                    end_wrap += "</pre>";
-                  }
+  for (var message of messages) {
+    if (document.getElementById(message.client_msg_id)) {
+      continue;
+    }
+    if (!users[message.user]) {
+      console.log("TODO: user not in users")
+      continue;
+    }
+    var avatar = getAvatar(message.user, 48);
+    var name = users[message.user].name;
+    var date = new Date(new Number(message.ts) * 1000).toString();
+    var message_text = message.text;
+    if (message.blocks) {
+      message_text = "";
+      for (var block of message.blocks) {
+        for (var element of block.elements) {
+          // eg type: rich_text
+          for (var sub_element of element.elements) {
+            // eg type: rich_text_section
+            if (sub_element.type == "text") {
+              start_wrap = "";
+              end_wrap = "";
+              if (sub_element.style) {
+                if (sub_element.style.bold) {
+                  start_wrap += "<b>";
+                  end_wrap += "</b>";
                 }
-                message_text += start_wrap + sub_element.text + end_wrap;
-              } else if(sub_element.type == "link") {
-                message_text += '<a href="' + sub_element.url + '">' + sub_element.url + '</a>';
+                if (sub_element.style.italic) {
+                  start_wrap += "<i>";
+                  end_wrap += "</i>";
+                }
+                if (sub_element.style.code) {
+                  start_wrap += "<pre>";
+                  end_wrap += "</pre>";
+                }
               }
+              message_text += start_wrap + sub_element.text + end_wrap;
+            } else if (sub_element.type == "link") {
+              message_text += '<a href="' + sub_element.url + '">' + sub_element.url + '</a>';
             }
           }
         }
-        message_text = message_text.replace(/\n/g, "<br>")
       }
+      message_text = message_text.replace(/\n/g, "<br>")
+    }
 
-      var message_files = '<div class="message_files">';
-      if(message.files) {
-        for(var file of message.files) {
-          message_files += `<a href="${file.url_private_download}">`;
-          if(file.thumb_160) {
-            message_files += `${file.name}<br><img class="file_thumbnail" src="${file.thumb_80}">`;
-          } else {
-            message_files += file.name;
-          }
-          message_files += '</a>';
+    var message_files = '<div class="message_files">';
+    if (message.files) {
+      for (var file of message.files) {
+        message_files += `<a href="${file.url_private_download}">`;
+        if (file.thumb_160) {
+          message_files += `${file.name}<br><img class="file_thumbnail" src="${file.thumb_80}">`;
+        } else {
+          message_files += file.name;
+        }
+        message_files += '</a>';
+      }
+    }
+    message_files += '</div>';
+
+    var reactions = "";
+    if (message.reactions) {
+      for (var reaction of message.reactions) {
+        if (emojis[reaction.name]) {
+          var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-small/";
+          emoji_url += emojis[reaction.name]["u"] + ".png"
+          reactions += `<img src="${emoji_url}">${reaction.count}`;
+        } else {
+          console.log("TODO: custom emoji")
         }
       }
-      message_files += '</div>';
+    }
 
-      var reactions = "";
-      if(message.reactions) {
-        for(var reaction of message.reactions) {
-          if(emojis[reaction.name]) {
-            var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-small/";
-            emoji_url += emojis[reaction.name]["u"] + ".png"
-            reactions += `<img src="${emoji_url}">${reaction.count}`;
-          } else {
-            console.log("TODO: custom emoji")
-          }
-        }
-      }
-
-      var message_html = `
+    var message_html = `
         <img src="${avatar}" class="message_avatar">
         <div class="message_right">
           <div class="message_top">
@@ -244,29 +247,29 @@ function renderMessages(messages, history) {
           </div>
         </div>
       `;
-      // <div style="clear:both"></div>
-      var message_div = document.createElement('div');
-      message_div.id = message.client_msg_id;
-      message_div.className = "message";
-      message_div.innerHTML = message_html;
-      if(history) {
-        chat.prepend(message_div);
-      } else {
-        chat.append(message_div);
-      }
+    // <div style="clear:both"></div>
+    var message_div = document.createElement('div');
+    message_div.id = message.client_msg_id;
+    message_div.className = "message";
+    message_div.innerHTML = message_html;
+    if (history) {
+      chat.prepend(message_div);
+    } else {
+      chat.append(message_div);
     }
+  }
 
-    if(history) {
-      var pushDown = document.createElement('div');
-      pushDown.className = "pushDown";
-      pushDown.id = "pushDown";
-      chat.prepend(pushDown);
-    }
+  if (history) {
+    var pushDown = document.createElement('div');
+    pushDown.className = "pushDown";
+    pushDown.id = "pushDown";
+    chat.prepend(pushDown);
+  }
 
-    var last_message = document.querySelector('#channel_chat div.message:last-child');
-    if(last_message) {
-      last_message.scrollIntoView()
-    }
+  var last_message = document.querySelector('#channel_chat div.message:last-child');
+  if (last_message) {
+    last_message.scrollIntoView()
+  }
 
 }
 
@@ -280,4 +283,3 @@ function renderMessages(messages, history) {
 //   oReq.open("GET", "https://slack.com/api/conversations.join?token=" + token + "&channel=" + channel);
 //   oReq.send();
 // }
-
