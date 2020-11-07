@@ -207,8 +207,19 @@ function renderMessages(messages) {
         message_text = message_text.replace(/\n/g, "<br>")
       }
 
-      // files[0].thumb_160
-      // files name permalink title
+      var message_files = '<div class="message_files">';
+      if(message.files) {
+        for(var file of message.files) {
+          message_files += `<a href="${file.url_private_download}">`;
+          if(file.thumb_160) {
+            message_files += `<img class="file_thumbnail" src="${file.thumb_80}">${file.name}`;
+          } else {
+            message_files += file.name;
+          }
+          message_files += '</a>';
+        }
+      }
+      message_files += '</div>';
 
       var reactions = "";
       if(message.reactions) {
@@ -216,7 +227,7 @@ function renderMessages(messages) {
           if(emojis[reaction.name]) {
             var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-small/";
             emoji_url += emojis[reaction.name]["u"] + ".png"
-            reactions += '<img src="' + emoji_url + '">' + reaction.count;
+            reactions += `<img src="${emoji_url}">${reaction.count}`;
           } else {
             console.log("TODO: custom emoji")
           }
@@ -232,6 +243,7 @@ function renderMessages(messages) {
           </div>
           <div class="message_bottom">
             ${message_text}
+            ${message_files}
             <div class="message_reactions">
               ${reactions}
             </div>
