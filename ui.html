@@ -45,7 +45,17 @@
     #sidebar ul {
         padding: 0;
         max-height: 25%;
-        overflow-y: scroll;
+        overflow-y: auto;
+
+        /*                 track       thumb */
+        scrollbar-color: rebeccapurple green;
+
+    }
+    #sidebar ul ::-webkit-scrollbar-track {
+        background-color: rebeccapurple;
+    }
+    #sidebar ul ::-webkit-scrollbar-thumb {
+        background-color: green;
     }
     #sidebar li {
         padding-top: 4px;
