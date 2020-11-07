@@ -7,6 +7,8 @@ var token = config.teams[team].token;
 var users = {};
 var team_url = config.teams[team].url;
 var current_channel
+var gbl_websocket_url;
+var chat = document.getElementById('channel_chat');
 
 // for(var emoji in emojis) { delete emojis[emoji]['name'] }
 // for(var emoji in emojis) { emojis[emoji]['u']=emojis[emoji]['unicode'];delete emojis[emoji]['unicode'] }
@@ -15,67 +17,59 @@ var emojis = JSON.parse('{"100":{"u":"1f4af"},"1234":{"u":"1f522"},"hash":{"u":"
 console.log("config", config);
 console.log("token", token);
 console.log("team_url", team_url);
+document.getElementById('workspace_name').innerHTML = config.teams[team].name;
 
-
-var boot_url = team_url + "api/client.boot?_x_id=noversion-1601417315.857&_x_version_ts=noversion&_x_gantry=true";
-var oReq = new XMLHttpRequest();
-oReq.addEventListener("load", function () {
-    console.log("bootListener");
-    var resp = JSON.parse(this.responseText);
-    console.log(resp);
-    var channel_html = "";
-    for(var channel of resp.channels) {
-      channel_html += `<li data-id="${channel.id}" data-topic="${channel.topic.value}" data-name="${channel.name}"><span>#</span> ${channel.name}</li>`;
-    }
-    current_channel = resp.channels[0].id;
-    document.getElementById('channel_name').innerHTML = "#" + resp.channels[0].name;
-    document.getElementById('topic').innerHTML = resp.channels[0].topic.value;
-    document.getElementById('channel_list').innerHTML = channel_html;
-    document.getElementById('channel_list').addEventListener("click", function(event) {
-      console.log("click channel", event);
-      console.log("click channel id", event.target.dataset.id);
-      // joinChannel(event.target.dataset.id);
-      document.getElementById('channel_name').innerHTML = "#" + event.target.dataset.name;
-      document.getElementById('topic').innerHTML = event.target.dataset.topic;
-      document.getElementById('channel_chat').innerHTML = "";
-      getConversationHistory(event.target.dataset.id);
-    });
-    getUsers();
-});
-oReq.withCredentials = true;
-oReq.open("POST", boot_url);
-var body = new FormData();
-body.append("token", token);
-body.append("only_self_subteams", 1);
-body.append("flannel_api_ver", 4);
-body.append("include_min_version_bump_check", 0);
-body.append("version_ts", 1601325391);
-body.append("_x_reason", "deferred-data");
-body.append("_x_sonic", true);
-oReq.send(body);
-
-
-
-function getWebsocket() {
+function boot() {
+  var boot_url = team_url + "api/client.boot?_x_id=noversion-1601417315.857&_x_version_ts=noversion&_x_gantry=true";
   var oReq = new XMLHttpRequest();
   oReq.addEventListener("load", function () {
-    console.log("getWebsocketListener");
-    var resp = JSON.parse(this.responseText);
-    console.log(resp);
-    gbl_websocket_url = resp.url;
-    if(resp.ok) {
-      startWebsocket();
-    } else {
-      console.log("websocket not ok");
-    }
+      console.log("bootListener");
+      var resp = JSON.parse(this.responseText);
+      console.log(resp);
+      var channel_html = "";
+      for(var channel of resp.channels) {
+        channel_html += `<li data-id="${channel.id}" data-topic="${channel.topic.value}" data-name="${channel.name}"><span>#</span> ${channel.name}</li>`;
+      }
+      current_channel = resp.channels[0].id;
+      document.getElementById('channel_name').innerHTML = "#" + resp.channels[0].name;
+      document.getElementById('topic').innerHTML = resp.channels[0].topic.value;
+      document.getElementById('channel_list').innerHTML = channel_html;
+      gbl_websocket_url = resp.url;
+      document.getElementById('channel_list').addEventListener("click", function(event) {
+        console.log("click channel", event);
+        console.log("click channel id", event.target.dataset.id);
+        // joinChannel(event.target.dataset.id);
+        document.getElementById('channel_name').innerHTML = "#" + event.target.dataset.name;
+        document.getElementById('topic').innerHTML = event.target.dataset.topic;
+        document.getElementById('channel_chat').innerHTML = "";
+        getConversationHistory(event.target.dataset.id);
+      });
+      getUsers();
   });
-  oReq.open("GET", "https://slack.com/api/rtm.connect?token=" + token);
-  oReq.send();
+  oReq.withCredentials = true;
+  oReq.open("POST", boot_url);
+  var body = new FormData();
+  body.append("token", token);
+  body.append("only_self_subteams", 1);
+  body.append("flannel_api_ver", 4);
+  body.append("include_min_version_bump_check", 0);
+  body.append("version_ts", 1601325391);
+  body.append("_x_reason", "deferred-data");
+  body.append("_x_sonic", true);
+  oReq.send(body);
 }
+boot();
+
 
 function websocketMessage(event) {
     var resp = JSON.parse(event.data);
     console.log('Message from server ', resp);
+    if(resp.type == "message") {
+      renderMessages([resp], false)
+    } else {
+      console.log("TODO: unhandled message type: ", resp.type)
+    }
+
 };
 
 function sendSocket(messageObj) {
@@ -95,13 +89,14 @@ function startWebsocket() {
 
 
 function getConversationHistory(channel) {
-    var url = team_url + "api/conversations.history?_x_id=a972d3ce-1604412892.519&_x_csid=NyWRfjihB-o&slack_route=T01B95K8BTQ&_x_version_ts=1604346880&_x_gantry=true";
+    var url = team_url + "api/conversations.history?_x_version_ts=1604346880&_x_gantry=true";
     var oReq = new XMLHttpRequest();
     oReq.addEventListener("load", function () {
         console.log("getConversationHistory");
         var resp = JSON.parse(this.responseText);
         console.log(resp);
-        renderMessages(resp.messages);
+        renderMessages(resp.messages, true);
+        startWebsocket();
     });
     oReq.withCredentials = true;
     oReq.open("POST", url);
@@ -158,8 +153,7 @@ function getAvatar(user, size) {
     return "https://ca.slack-edge.com/" + team + "-" + user + "-" + users[user].profile.avatar_hash  + "-" + size;
 }
 
-function renderMessages(messages) {
-    var chat = document.getElementById('channel_chat');
+function renderMessages(messages, history) {
 
     for(var message of messages) {
       if(document.getElementById(message.client_msg_id)) {
@@ -212,7 +206,7 @@ function renderMessages(messages) {
         for(var file of message.files) {
           message_files += `<a href="${file.url_private_download}">`;
           if(file.thumb_160) {
-            message_files += `<img class="file_thumbnail" src="${file.thumb_80}">${file.name}`;
+            message_files += `${file.name}<br><img class="file_thumbnail" src="${file.thumb_80}">`;
           } else {
             message_files += file.name;
           }
@@ -255,16 +249,24 @@ function renderMessages(messages) {
       message_div.id = message.client_msg_id;
       message_div.className = "message";
       message_div.innerHTML = message_html;
-      chat.prepend(message_div);
-      
+      if(history) {
+        chat.prepend(message_div);
+      } else {
+        chat.append(message_div);
+      }
     }
 
-    var pushDown = document.createElement('div');
-    pushDown.className = "pushDown";
-    pushDown.id = "pushDown";
-    chat.prepend(pushDown);
+    if(history) {
+      var pushDown = document.createElement('div');
+      pushDown.className = "pushDown";
+      pushDown.id = "pushDown";
+      chat.prepend(pushDown);
+    }
 
-    document.querySelector('#channel_chat div.message:last-child').scrollIntoView()
+    var last_message = document.querySelector('#channel_chat div.message:last-child');
+    if(last_message) {
+      last_message.scrollIntoView()
+    }
 
 }
 
