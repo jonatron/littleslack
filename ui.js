@@ -163,7 +163,7 @@ function renderMessages(messages) {
 
     for(var message of messages) {
       if(document.getElementById(message.client_msg_id)) {
-        return;
+        continue;
       }
       if(!users[message.user]) {
         console.log("TODO: user not in users")
@@ -244,9 +244,15 @@ function renderMessages(messages) {
       message_div.className = "message";
       message_div.innerHTML = message_html;
       chat.prepend(message_div);
-      message_div.scrollIntoView()
+      
     }
 
+    var pushDown = document.createElement('div');
+    pushDown.className = "pushDown";
+    pushDown.id = "pushDown";
+    chat.prepend(pushDown);
+
+    document.querySelector('#channel_chat div.message:last-child').scrollIntoView()
 
 }
 
