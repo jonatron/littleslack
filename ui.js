@@ -6,6 +6,7 @@ var team = config.lastActiveTeamId;
 var token = config.teams[team].token;
 var users = {};
 var team_url = config.teams[team].url;
+var my_user_id = config.teams[team].user_id;
 var current_channel;
 var gbl_websocket_url;
 var chat = document.getElementById('channel_chat');
@@ -67,8 +68,16 @@ function websocketMessage(event) {
   console.log('Message from server ', resp);
   if (resp.type == "message") {
     renderMessages([resp], false)
+  } else if (resp.type == "pong") {
+    // fine
+  } else if (resp.type == "reconnect_url") {
+    gbl_websocket_url = resp.url + "?token=" + token; // do i need token?
+  } else if (resp.type == "error") {
+    console.log("reconnecting to websocket");
+    gbl_websocket.close();
+    startWebsocket();
   } else {
-    console.log("TODO: unhandled message type: ", resp.type)
+    console.log("TODO: unhandled message type: ", resp.type);
   }
 
 };
@@ -78,6 +87,7 @@ function sendSocket(messageObj) {
 }
 
 function websocketPing() {
+  console.log("pinging websocket");
   sendSocket({
     type: "ping",
     id: gbl_message_id++
@@ -88,7 +98,7 @@ function startWebsocket() {
   console.log("gbl_websocket_url", gbl_websocket_url);
   gbl_websocket = new WebSocket(gbl_websocket_url);
   gbl_websocket.addEventListener('message', websocketMessage);
-  setInterval(websocketPing, 3000);
+  setInterval(websocketPing, 4000);
 }
 
 
@@ -164,7 +174,7 @@ function renderMessages(messages, history) {
       continue;
     }
     if (!users[message.user]) {
-      console.log("TODO: user not in users")
+      console.log("TODO: user not in users");
       continue;
     }
     var avatar = getAvatar(message.user, 48);
@@ -202,7 +212,7 @@ function renderMessages(messages, history) {
           }
         }
       }
-      message_text = message_text.replace(/\n/g, "<br>")
+      message_text = message_text.replace(/\n/g, "<br>");
     }
 
     var message_files = '<div class="message_files">';
@@ -233,24 +243,24 @@ function renderMessages(messages, history) {
     }
 
     var message_html = `
-        <img src="${avatar}" class="message_avatar">
-        <div class="message_right">
-          <div class="message_top">
-              <a class="message_user" href="">${name}</a>
-              <span class="message_date">${date}</span>
-          </div>
-          <div class="message_bottom">
-            ${message_text}
-            ${message_files}
-            <div class="message_reactions">
-              ${reactions}
-            </div>
+      <img src="${avatar}" class="message_avatar">
+      <div class="message_right">
+        <div class="message_top">
+            <a class="message_user" href="">${name}</a>
+            <span class="message_date">${date}</span>
+        </div>
+        <div class="message_bottom">
+          ${message_text}
+          ${message_files}
+          <div class="message_reactions">
+            ${reactions}
           </div>
         </div>
-      `;
-    // <div style="clear:both"></div>
+      </div>
+      <div style="clear:both"></div>`;
+
     var message_div = document.createElement('div');
-    message_div.id = message.client_msg_id;
+    message_div.id = message.client_msg_id || message.ts;
     message_div.className = "message";
     message_div.innerHTML = message_html;
     if (history) {
@@ -269,13 +279,13 @@ function renderMessages(messages, history) {
 
   var last_message = document.querySelector('#channel_chat div.message:last-child');
   if (last_message) {
-    last_message.scrollIntoView()
+    last_message.scrollIntoView();
   }
 
 }
 
 var channel_input_bottom = parseInt(getComputedStyle(document.getElementById('channel_input')).bottom.replace("px", ""));
-var input = document.getElementById('input')
+var input = document.getElementById('input');
 document.getElementById('input').addEventListener("keypress", function(event) {
   console.log("keypress event", event);
   // shift+enter grow
@@ -299,4 +309,65 @@ function sendMessage(message) {
     text: message,
     channel: current_channel,
   });
+  var messagesToRender = [{
+    type: "message",
+    id: gbl_message_id,
+    text: message,
+    channel: current_channel,
+    user: my_user_id,
+    client_msg_id: gbl_message_id,
+    ts: Date.now()
+  }];
+  renderMessages(messagesToRender, false);
 }
+
+
+function showEmojiPicker() {
+
+  var picker = document.getElementById('emoji_picker');
+  if(!picker.querySelector("img")) {
+    // populate emojis
+    var picker_html = "";
+    for(emoji in emojis) {
+      var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-small/";
+      emoji_url += emojis[emoji]["u"] + ".png";
+      picker_html += `<img data-emoji-name="${emoji}" src="${emoji_url}">`;
+    }
+    picker.innerHTML = picker_html;
+  }
+
+  
+}
+
+document.getElementById('channel_chat').addEventListener('mouseover', function(event) {
+
+  var message_div = event.target.closest("div.message");
+  var ar = document.getElementById('add_reaction');
+
+  if(!message_div && ar) {
+    // not hovering on a message
+    ar.remove();
+    return;
+  }
+  if(!message_div) {
+    return;
+  }
+  var has_add_reaction = message_div.querySelector('#add_reaction');
+  if(ar && !has_add_reaction) {
+    // in a different message
+    ar.remove();
+  }
+  var is_hovered = !(getComputedStyle(message_div).backgroundColor.includes("0, 0, 0"));
+  if(is_hovered && !has_add_reaction) {
+    var add_reaction_div = document.createElement('div');
+    add_reaction_div.id = "add_reaction";
+    add_reaction_div.innerHTML = '<a id="show_emoji_picker" href="#">😀+</a>';
+    message_div.querySelector('.message_right').append(add_reaction_div);
+    document.getElementById('show_emoji_picker').addEventListener('click', function(event) {
+      console.log("show emojis");
+      showEmojiPicker();
+    });
+  }
+
+});
+
