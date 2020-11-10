@@ -10,6 +10,7 @@ var my_user_id = config.teams[team].user_id;
 var current_channel;
 var gbl_websocket_url;
 var chat = document.getElementById('channel_chat');
+var react_ts;
 
 // for(var emoji in emojis) { delete emojis[emoji]['name'] }
 // for(var emoji in emojis) { emojis[emoji]['u']=emojis[emoji]['unicode'];delete emojis[emoji]['unicode'] }
@@ -71,11 +72,15 @@ function websocketMessage(event) {
   } else if (resp.type == "pong") {
     // fine
   } else if (resp.type == "reconnect_url") {
-    gbl_websocket_url = resp.url + "?token=" + token; // do i need token?
+    gbl_websocket_url = resp.url
   } else if (resp.type == "error") {
     console.log("reconnecting to websocket");
     gbl_websocket.close();
     startWebsocket();
+  } else if(resp.type == "reaction_added") {
+    // todo
+    // {"type":"reaction_added","user":"","item":{"type":"message","channel":"","ts":"1604770729.002600"},
+    // "reaction":"100","item_user":"","event_ts":"1605016252.000200","ts":"1605016252.000200"}
   } else {
     console.log("TODO: unhandled message type: ", resp.type);
   }
@@ -170,9 +175,6 @@ function getAvatar(user, size) {
 function renderMessages(messages, history) {
 
   for (var message of messages) {
-    if (document.getElementById(message.client_msg_id)) {
-      continue;
-    }
     if (!users[message.user]) {
       console.log("TODO: user not in users");
       continue;
@@ -184,30 +186,32 @@ function renderMessages(messages, history) {
     if (message.blocks) {
       message_text = "";
       for (var block of message.blocks) {
-        for (var element of block.elements) {
-          // eg type: rich_text
-          for (var sub_element of element.elements) {
-            // eg type: rich_text_section
-            if (sub_element.type == "text") {
-              start_wrap = "";
-              end_wrap = "";
-              if (sub_element.style) {
-                if (sub_element.style.bold) {
-                  start_wrap += "<b>";
-                  end_wrap += "</b>";
+        if(block.elements) {
+          for (var element of block.elements) {
+            // eg type: rich_text
+            for (var sub_element of element.elements) {
+              // eg type: rich_text_section
+              if (sub_element.type == "text") {
+                start_wrap = "";
+                end_wrap = "";
+                if (sub_element.style) {
+                  if (sub_element.style.bold) {
+                    start_wrap += "<b>";
+                    end_wrap += "</b>";
+                  }
+                  if (sub_element.style.italic) {
+                    start_wrap += "<i>";
+                    end_wrap += "</i>";
+                  }
+                  if (sub_element.style.code) {
+                    start_wrap += "<pre>";
+                    end_wrap += "</pre>";
+                  }
                 }
-                if (sub_element.style.italic) {
-                  start_wrap += "<i>";
-                  end_wrap += "</i>";
-                }
-                if (sub_element.style.code) {
-                  start_wrap += "<pre>";
-                  end_wrap += "</pre>";
-                }
+                message_text += start_wrap + sub_element.text + end_wrap;
+              } else if (sub_element.type == "link") {
+                message_text += '<a href="' + sub_element.url + '">' + sub_element.url + '</a>';
               }
-              message_text += start_wrap + sub_element.text + end_wrap;
-            } else if (sub_element.type == "link") {
-              message_text += '<a href="' + sub_element.url + '">' + sub_element.url + '</a>';
             }
           }
         }
@@ -233,7 +237,7 @@ function renderMessages(messages, history) {
     if (message.reactions) {
       for (var reaction of message.reactions) {
         if (emojis[reaction.name]) {
-          var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-small/";
+          var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-medium/";
           emoji_url += emojis[reaction.name]["u"] + ".png"
           reactions += `<img src="${emoji_url}">${reaction.count}`;
         } else {
@@ -260,7 +264,8 @@ function renderMessages(messages, history) {
       <div style="clear:both"></div>`;
 
     var message_div = document.createElement('div');
-    message_div.id = message.client_msg_id || message.ts;
+    message_div.dataset["client_msg_id"] = message.client_msg_id;
+    message_div.dataset["ts"] = message.ts
     message_div.className = "message";
     message_div.innerHTML = message_html;
     if (history) {
@@ -325,18 +330,38 @@ function sendMessage(message) {
 function showEmojiPicker() {
 
   var picker = document.getElementById('emoji_picker');
+  picker.style.display = "block";
   if(!picker.querySelector("img")) {
     // populate emojis
     var picker_html = "";
     for(emoji in emojis) {
-      var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-small/";
+      var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-medium/";
       emoji_url += emojis[emoji]["u"] + ".png";
-      picker_html += `<img data-emoji-name="${emoji}" src="${emoji_url}">`;
+      picker_html += `<img data-emojiname="${emoji}" src="${emoji_url}">`;
     }
     picker.innerHTML = picker_html;
   }
 
-  
+
+}
+
+function react(emoji, channel, timestamp) {
+  var url = team_url + "api/reactions.add?_x_version_ts=1604346880&_x_gantry=true";
+  var oReq = new XMLHttpRequest();
+  oReq.addEventListener("load", function() {
+    console.log("reactions.add");
+    var resp = JSON.parse(this.responseText);
+    console.log(resp);
+
+  });
+  oReq.withCredentials = true;
+  oReq.open("POST", url);
+  var body = new FormData();
+  body.append("token", token);
+  body.append("channel", current_channel);
+  body.append("name", emoji);
+  body.append("timestamp", react_ts);
+  oReq.send(body);
 }
 
 document.getElementById('channel_chat').addEventListener('mouseover', function(event) {
@@ -365,9 +390,29 @@ document.getElementById('channel_chat').addEventListener('mouseover', function(e
     message_div.querySelector('.message_right').append(add_reaction_div);
     document.getElementById('show_emoji_picker').addEventListener('click', function(event) {
       console.log("show emojis");
+      react_ts = message_div.dataset.ts;
       showEmojiPicker();
+      event.stopPropagation();
     });
   }
 
 });
 
+
+document.getElementById('emoji_picker').addEventListener('click', function(event) {
+  console.log("emoji click event", event);
+  var emoji = event.target.dataset.emojiname;
+  if(!emoji) {
+    return;
+  }
+  react(emoji, current_channel, react_ts)
+  document.getElementById('emoji_picker').style.display = "none";
+});
+
+
+document.addEventListener('click', function(event) {
+  var target_id = event.target.id;
+  if(!event.target.dataset.emojiname) {
+    document.getElementById('emoji_picker').style.display = "none";
+  }
+});
