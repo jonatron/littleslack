@@ -5,10 +5,12 @@ var config = JSON.parse(window.localStorage.localConfig_v2);
 var team = config.lastActiveTeamId;
 var token = config.teams[team].token;
 var users = {};
+var ims  = [];
 var team_url = config.teams[team].url;
 var my_user_id = config.teams[team].user_id;
 var current_channel;
-var gbl_websocket_url;
+var websocket;
+var websocket_url;
 var chat = document.getElementById('channel_chat');
 var react_ts;
 
@@ -36,7 +38,7 @@ function boot() {
     document.getElementById('channel_name').innerHTML = "#" + resp.channels[0].name;
     document.getElementById('topic').innerHTML = resp.channels[0].topic.value;
     document.getElementById('channel_list').innerHTML = channel_html;
-    gbl_websocket_url = resp.url;
+    websocket_url = resp.url;
     document.getElementById('channel_list').addEventListener("click", function(event) {
       console.log("click channel", event);
       console.log("click channel id", event.target.dataset.id);
@@ -47,6 +49,12 @@ function boot() {
       document.getElementById('channel_chat').innerHTML = "";
       getConversationHistory(event.target.dataset.id);
     });
+
+    // used in getUsers
+    for (var im of resp.ims) {
+      ims.push(im);
+    }
+
     getUsers();
   });
   oReq.withCredentials = true;
@@ -72,15 +80,13 @@ function websocketMessage(event) {
   } else if (resp.type == "pong") {
     // fine
   } else if (resp.type == "reconnect_url") {
-    gbl_websocket_url = resp.url
+    websocket_url = resp.url
   } else if (resp.type == "error") {
     console.log("reconnecting to websocket");
-    gbl_websocket.close();
+    websocket.close();
     startWebsocket();
   } else if(resp.type == "reaction_added") {
-    // todo
-    // {"type":"reaction_added","user":"","item":{"type":"message","channel":"","ts":"1604770729.002600"},
-    // "reaction":"100","item_user":"","event_ts":"1605016252.000200","ts":"1605016252.000200"}
+    add_reaction(channel, reaction, ts)
   } else {
     console.log("TODO: unhandled message type: ", resp.type);
   }
@@ -88,7 +94,7 @@ function websocketMessage(event) {
 };
 
 function sendSocket(messageObj) {
-  gbl_websocket.send(JSON.stringify(messageObj));
+  websocket.send(JSON.stringify(messageObj));
 }
 
 function websocketPing() {
@@ -100,9 +106,13 @@ function websocketPing() {
 }
 
 function startWebsocket() {
-  console.log("gbl_websocket_url", gbl_websocket_url);
-  gbl_websocket = new WebSocket(gbl_websocket_url);
-  gbl_websocket.addEventListener('message', websocketMessage);
+  console.log("websocket_url", websocket_url);
+  if(websocket) {
+    console.log("already got WebSocket");
+    return;
+  }
+  websocket = new WebSocket(websocket_url);
+  websocket.addEventListener('message', websocketMessage);
   setInterval(websocketPing, 4000);
 }
 
@@ -132,12 +142,16 @@ function getUsers() {
     console.log("getUsers");
     var resp = JSON.parse(this.responseText);
     console.log(resp);
-    var users_html = "";
-    var bot_html = "";
     for (var user of resp.results) {
       users[user.id] = user;
-      var avatar = getAvatar(user.id, 28);
-      var li = `<li data-id="${user.id}"><img class="sidebar_avatar" src="${avatar}">${user.name}</li>`;
+    }
+    var users_html = "";
+    var bot_html = "";
+    // from boot
+    for (var im of ims) {
+      var avatar = getAvatar(im.user, 28);
+      var li = `<li data-id="${im.id}" data-userid="${im.user}">
+        <img class="sidebar_avatar" src="${avatar}">${users[im.user].name}</li>`;
       if (user.is_bot) {
         bot_html += li;
       } else {
@@ -149,7 +163,12 @@ function getUsers() {
     var user_click = function(event) {
       console.log("click user", event);
       console.log("click user id", event.target.dataset.id);
-
+      current_channel = event.target.dataset.id;
+      // joinChannel(event.target.dataset.id);
+      document.getElementById('channel_name').innerHTML = users[event.target.dataset.userid].name;
+      document.getElementById('topic').innerHTML = "";
+      document.getElementById('channel_chat').innerHTML = "";
+      getConversationHistory(event.target.dataset.id);
     };
     document.getElementById('direct_message_list').addEventListener("click", user_click);
     document.getElementById('app_list').addEventListener("click", user_click);
@@ -239,7 +258,7 @@ function renderMessages(messages, history) {
         if (emojis[reaction.name]) {
           var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-medium/";
           emoji_url += emojis[reaction.name]["u"] + ".png"
-          reactions += `<img src="${emoji_url}">${reaction.count}`;
+          reactions += `<span class="message_reaction" data-reactionname="${reaction.name}"><img src="${emoji_url}">${reaction.count}</span>`;
         } else {
           console.log("TODO: custom emoji")
         }
@@ -362,6 +381,13 @@ function react(emoji, channel, timestamp) {
   body.append("name", emoji);
   body.append("timestamp", react_ts);
   oReq.send(body);
+}
+
+
+function add_reaction(channel, reaction, ts) {
+  var message_div = document.querySelector(`div.message[data-ts='${ts}']`);
+  var reactions_div = message_div.querySelector('div.message_reactions');
+  // todo dataset.reactionname
 }
 
 document.getElementById('channel_chat').addEventListener('mouseover', function(event) {
