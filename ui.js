@@ -24,7 +24,7 @@ console.log("team_url", team_url);
 document.getElementById('workspace_name').innerHTML = config.teams[team].name;
 
 function boot() {
-  var boot_url = team_url + "api/client.boot?_x_id=noversion-1601417315.857&_x_version_ts=noversion&_x_gantry=true";
+  var boot_url = team_url + "api/client.boot?_x_version_ts=noversion&_x_gantry=true";
   var oReq = new XMLHttpRequest();
   oReq.addEventListener("load", function() {
     console.log("bootListener");
@@ -120,7 +120,7 @@ function startWebsocket() {
 
 
 function getConversationHistory(channel) {
-  var url = team_url + "api/conversations.history?_x_version_ts=1604346880&_x_gantry=true";
+  var url = team_url + "api/conversations.history?_x_gantry=true";
   var oReq = new XMLHttpRequest();
   oReq.addEventListener("load", function() {
     console.log("getConversationHistory");
@@ -378,7 +378,7 @@ function showEmojiPicker() {
 }
 
 function react(emoji, channel, timestamp, action) {
-  var url = team_url + `api/reactions.${action}?_x_version_ts=1604346880&_x_gantry=true`;
+  var url = team_url + `api/reactions.${action}?_x_gantry=true`;
   var oReq = new XMLHttpRequest();
   oReq.addEventListener("load", function() {
     console.log("reactions.add/remove");
