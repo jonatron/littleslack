@@ -273,6 +273,9 @@ function renderMessages(messages, history) {
       }
     }
 
+    // todo: replies
+    // "thread_ts":"1605216513.000800","reply_count":1,"reply_users_count":1,"latest_reply":"1605216531.001000","reply_users":["user"],
+
     var message_html = `
       <img src="${avatar}" class="message_avatar">
       <div class="message_right">
