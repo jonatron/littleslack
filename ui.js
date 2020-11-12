@@ -86,7 +86,9 @@ function websocketMessage(event) {
     websocket.close();
     startWebsocket();
   } else if(resp.type == "reaction_added") {
-    add_reaction(channel, reaction, ts)
+    show_reaction(resp.reaction, resp.item.channel, resp.item.ts, resp.user);
+  } else if(resp.type == "reaction_removed") {
+    remove_reaction(resp.reaction, resp.item.channel, resp.item.ts, resp.user);
   } else {
     console.log("TODO: unhandled message type: ", resp.type);
   }
@@ -191,6 +193,14 @@ function getAvatar(user, size) {
   return "https://ca.slack-edge.com/" + team + "-" + user + "-" + users[user].profile.avatar_hash + "-" + size;
 }
 
+function renderReaction(reaction) {
+  console.log("renderReaction", reaction);
+  var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-medium/";
+  emoji_url += emojis[reaction.name]["u"] + ".png";
+  return `<span class="message_reaction" data-users="${btoa(JSON.stringify(reaction.users))}" data-reactionname="${reaction.name}">
+    <img src="${emoji_url}"><b>${reaction.count}</b></span>`;
+}
+
 function renderMessages(messages, history) {
 
   for (var message of messages) {
@@ -256,9 +266,7 @@ function renderMessages(messages, history) {
     if (message.reactions) {
       for (var reaction of message.reactions) {
         if (emojis[reaction.name]) {
-          var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-medium/";
-          emoji_url += emojis[reaction.name]["u"] + ".png"
-          reactions += `<span class="message_reaction" data-reactionname="${reaction.name}"><img src="${emoji_url}">${reaction.count}</span>`;
+          reactions += renderReaction(reaction);
         } else {
           console.log("TODO: custom emoji")
         }
@@ -308,7 +316,7 @@ function renderMessages(messages, history) {
 
 }
 
-var channel_input_bottom = parseInt(getComputedStyle(document.getElementById('channel_input')).bottom.replace("px", ""));
+var channel_input_bottom = parseInt(getComputedStyle(document.getElementById('channel_input')).bottom.replace("px", ""), 10);
 var input = document.getElementById('input');
 document.getElementById('input').addEventListener("keypress", function(event) {
   console.log("keypress event", event);
@@ -353,10 +361,15 @@ function showEmojiPicker() {
   if(!picker.querySelector("img")) {
     // populate emojis
     var picker_html = "";
+    var i = 0;
     for(emoji in emojis) {
+      if(i > 100) {
+        break;
+      }
       var emoji_url = "https://a.slack-edge.com/production-standard-emoji-assets/10.2/google-medium/";
       emoji_url += emojis[emoji]["u"] + ".png";
       picker_html += `<img data-emojiname="${emoji}" src="${emoji_url}">`;
+      i++;
     }
     picker.innerHTML = picker_html;
   }
@@ -364,11 +377,11 @@ function showEmojiPicker() {
 
 }
 
-function react(emoji, channel, timestamp) {
-  var url = team_url + "api/reactions.add?_x_version_ts=1604346880&_x_gantry=true";
+function react(emoji, channel, timestamp, action) {
+  var url = team_url + `api/reactions.${action}?_x_version_ts=1604346880&_x_gantry=true`;
   var oReq = new XMLHttpRequest();
   oReq.addEventListener("load", function() {
-    console.log("reactions.add");
+    console.log("reactions.add/remove");
     var resp = JSON.parse(this.responseText);
     console.log(resp);
 
@@ -379,15 +392,48 @@ function react(emoji, channel, timestamp) {
   body.append("token", token);
   body.append("channel", current_channel);
   body.append("name", emoji);
-  body.append("timestamp", react_ts);
+  body.append("timestamp", timestamp);
   oReq.send(body);
 }
 
-
-function add_reaction(channel, reaction, ts) {
+function remove_reaction(emoji, channel, ts, user) {
+  console.log("remove_reaction(emoji, channel, ts)", emoji, channel, ts);
   var message_div = document.querySelector(`div.message[data-ts='${ts}']`);
   var reactions_div = message_div.querySelector('div.message_reactions');
-  // todo dataset.reactionname
+  var existing_reaction = reactions_div.querySelector(`[data-reactionname='${emoji}']`);
+  if(existing_reaction) {
+    var reaction_users = JSON.parse(atob(existing_reaction.dataset.users));
+    console.log("remove_reaction reaction_users 1", reaction_users);
+    var user_idx = reaction_users.indexOf(user);
+    if(user_idx >= 0) {
+      reaction_users.splice(user_idx, 1);
+    }
+    existing_reaction.dataset.users = btoa(JSON.stringify(reaction_users));
+    console.log("remove_reaction reaction_users 2", reaction_users);
+    if(reaction_users.length == 0) {
+      existing_reaction.remove();
+    } else {
+      existing_reaction.querySelector('b').innerText = reaction_users.length;
+    }
+  }
+}
+
+function show_reaction(emoji, channel, ts, user) {
+  var message_div = document.querySelector(`div.message[data-ts='${ts}']`);
+  var reactions_div = message_div.querySelector('div.message_reactions');
+  var existing_reaction = reactions_div.querySelector(`[data-reactionname='${emoji}']`);
+  if(existing_reaction) {
+    var reaction_users = JSON.parse(atob(existing_reaction.dataset.users));
+    if(reaction_users.includes(user)) {
+      return;
+    }
+    reaction_users.push(user);
+    existing_reaction.dataset.users = btoa(JSON.stringify(reaction_users));
+    existing_reaction.querySelector('b').innerText = reaction_users.length;
+  } else {
+    var reaction_html = renderReaction({name: emoji, count: 1, users: [user]});
+    reactions_div.innerHTML = reactions_div.innerHTML + reaction_html;
+  }
 }
 
 document.getElementById('channel_chat').addEventListener('mouseover', function(event) {
@@ -424,6 +470,27 @@ document.getElementById('channel_chat').addEventListener('mouseover', function(e
 
 });
 
+document.getElementById('channel_chat').addEventListener('click', function(event) {
+  var closest_message_reaction = event.target.closest(".message_reaction");
+  if(closest_message_reaction) {
+    // either add or remove
+    var message_div = closest_message_reaction.closest("div.message");
+    react_ts = message_div.dataset.ts;
+    console.log("clicked message_reaction on ", message_div);
+    var reaction_users = JSON.parse(atob(closest_message_reaction.dataset.users));
+    var emoji = closest_message_reaction.dataset.reactionname;
+    if(reaction_users.includes(my_user_id)) {
+      remove_reaction(emoji, current_channel, react_ts, my_user_id);
+      react(emoji, current_channel, react_ts, "remove");
+    } else {
+      show_reaction(emoji, current_channel, react_ts, my_user_id);
+      react(emoji, current_channel, react_ts, "add");
+    }
+
+    event.stopPropagation();
+  }
+});
+
 
 document.getElementById('emoji_picker').addEventListener('click', function(event) {
   console.log("emoji click event", event);
@@ -431,7 +498,8 @@ document.getElementById('emoji_picker').addEventListener('click', function(event
   if(!emoji) {
     return;
   }
-  react(emoji, current_channel, react_ts)
+  react(emoji, current_channel, react_ts, "add");
+  show_reaction(emoji, current_channel, react_ts);
   document.getElementById('emoji_picker').style.display = "none";
 });
 
