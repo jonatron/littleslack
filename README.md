@@ -11,6 +11,7 @@ Install
 1. Check code to see if I'm stealing your tokens / cookies
 2. Be signed into slack already
 3. Firefox: [about:debugging#/runtime/this-firefox](about:debugging#/runtime/this-firefox "about:debugging#/runtime/this-firefox") Chrome: [chrome://extensions/](chrome://extensions/) , enable developer mode
+4. Go to [https://app.slack.com/robots.txt](https://app.slack.com/robots.txt)
 
 Features
 --------
