@@ -232,6 +232,10 @@ function renderMessages(messages, renderType, appendTo) {
       console.log("TODO: user not in users");
       continue;
     }
+    if(document.getElementById(message.ts)) {
+      console.log("skipping render messsage", message.ts);
+      continue;
+    }
     var avatar = getAvatar(message.user, 48);
     var name = users[message.user].name;
     var date = new Date(new Number(message.ts) * 1000).toString();
@@ -298,7 +302,7 @@ function renderMessages(messages, renderType, appendTo) {
       }
     }
 
-    var message_replies = '<div class="message_replies"><div class="number_of_replies">';
+    var message_replies = '';
     if(message.reply_count) {
       if(message.reply_users) {
         for(var i = 0; i < 3 && i < message.reply_users.length; i++) {
@@ -313,8 +317,6 @@ function renderMessages(messages, renderType, appendTo) {
         message_replies += ' replies';
       }
     }
-    message_replies += '</div></div>';
-
 
     var message_html = `
       <img src="${avatar}" class="message_avatar">
@@ -329,12 +331,13 @@ function renderMessages(messages, renderType, appendTo) {
           <div class="message_reactions">
             ${reactions}
           </div>
-          ${message_replies}
+          <div class="message_replies"><div class="number_of_replies">${message_replies}</div></div>
         </div>
       </div>
       <div style="clear:both"></div>`;
 
     var message_div = document.createElement('div');
+    message_div.id = message.ts;
     message_div.dataset["client_msg_id"] = message.client_msg_id;
     message_div.dataset["ts"] = message.ts
     message_div.className = "message";
@@ -542,6 +545,9 @@ document.getElementById('channel_chat').addEventListener('click', function(event
     console.log("message replies clicked");
     var message_div = closest_message_replies.closest("div.message");
     var replies_ts = message_div.dataset.ts;
+    closest_message_replies.querySelectorAll('div.message').forEach(function(el) {
+      el.remove();
+    });
     getConversationReplies(current_channel, replies_ts, closest_message_replies);
     event.stopPropagation();
     return;
