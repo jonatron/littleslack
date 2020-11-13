@@ -183,7 +183,6 @@
         height: 26px;
         background-color: #ececec;
         border-radius: 3px;
-        line-height: 1px;
         margin-right: 9px;
         padding-right: 3px;
         border: 1px solid #fff;
@@ -193,13 +192,25 @@
         cursor: pointer;
     }
     .message_reaction img {
-        vertical-align: -9px;
         margin-right: 4px;
+        margin-top: 2px;
+    }
+    .message_reaction b {
+        font-weight: normal;
+        position: relative;
+        top: -4px;
     }
     #add_reaction {
         position: absolute;
         right: 20px;
         top: 0px;
+    }
+    .message_replies {
+        margin-left: 30px;
+    }
+    .number_of_replies:hover {
+        text-decoration: underline;
+        cursor: pointer;
     }
 
 
@@ -216,11 +227,13 @@
         padding: 5px;
         border-radius: 3px;
     }
+    #emoji_picker img {
+        margin-bottom: 5px;
+    }
     #emoji_picker img, .message_reactions img {
         width: 22px;
         height: 22px;
         margin-left: 5px;
-        margin-bottom: 5px;
     }
 
 

@@ -76,7 +76,12 @@ function websocketMessage(event) {
   var resp = JSON.parse(event.data);
   console.log('Message from server ', resp);
   if (resp.type == "message") {
-    renderMessages([resp], false)
+    if(resp.thread_ts) {
+      var replies_div = document.querySelector(`div.message[data-ts='${resp.thread_ts}'] div.message_replies`);
+      renderMessages([resp], "replies", replies_div);
+    } else {
+      renderMessages([resp], "standard");
+    }
   } else if (resp.type == "pong") {
     // fine
   } else if (resp.type == "reconnect_url") {
@@ -126,7 +131,7 @@ function getConversationHistory(channel) {
     console.log("getConversationHistory");
     var resp = JSON.parse(this.responseText);
     console.log(resp);
-    renderMessages(resp.messages, true);
+    renderMessages(resp.messages, "history");
     startWebsocket();
   });
   oReq.withCredentials = true;
@@ -134,6 +139,25 @@ function getConversationHistory(channel) {
   var body = new FormData();
   body.append("token", token);
   body.append("channel", channel);
+  oReq.send(body);
+}
+
+
+function getConversationReplies(channel, ts, appendTo) {
+  var url = team_url + "api/conversations.replies?_x_gantry=true";
+  var oReq = new XMLHttpRequest();
+  oReq.addEventListener("load", function() {
+    console.log("getConversationReplies");
+    var resp = JSON.parse(this.responseText);
+    console.log(resp);
+    renderMessages(resp.messages.slice(1), "replies", appendTo);
+  });
+  oReq.withCredentials = true;
+  oReq.open("POST", url);
+  var body = new FormData();
+  body.append("token", token);
+  body.append("channel", channel);
+  body.append("ts", ts);
   oReq.send(body);
 }
 
@@ -201,7 +225,7 @@ function renderReaction(reaction) {
     <img src="${emoji_url}"><b>${reaction.count}</b></span>`;
 }
 
-function renderMessages(messages, history) {
+function renderMessages(messages, renderType, appendTo) {
 
   for (var message of messages) {
     if (!users[message.user]) {
@@ -248,8 +272,9 @@ function renderMessages(messages, history) {
       message_text = message_text.replace(/\n/g, "<br>");
     }
 
-    var message_files = '<div class="message_files">';
+    var message_files = '';
     if (message.files) {
+      message_files = '<div class="message_files">';
       for (var file of message.files) {
         message_files += `<a href="${file.url_private_download}">`;
         if (file.thumb_160) {
@@ -259,8 +284,8 @@ function renderMessages(messages, history) {
         }
         message_files += '</a>';
       }
+      message_files += '</div>';
     }
-    message_files += '</div>';
 
     var reactions = "";
     if (message.reactions) {
@@ -273,8 +298,23 @@ function renderMessages(messages, history) {
       }
     }
 
-    // todo: replies
-    // "thread_ts":"1605216513.000800","reply_count":1,"reply_users_count":1,"latest_reply":"1605216531.001000","reply_users":["user"],
+    var message_replies = '<div class="message_replies"><div class="number_of_replies">';
+    if(message.reply_count) {
+      if(message.reply_users) {
+        for(var i = 0; i < 3 && i < message.reply_users.length; i++) {
+          var avatar = getAvatar(message.reply_users[i], 28);
+          message_replies += `<img src="${avatar}"> `;
+        }
+      }
+      message_replies += '&nbsp;' + message.reply_count
+      if(message.reply_count == 1) {
+        message_replies += ' reply';
+      } else {
+        message_replies += ' replies';
+      }
+    }
+    message_replies += '</div></div>';
+
 
     var message_html = `
       <img src="${avatar}" class="message_avatar">
@@ -289,6 +329,7 @@ function renderMessages(messages, history) {
           <div class="message_reactions">
             ${reactions}
           </div>
+          ${message_replies}
         </div>
       </div>
       <div style="clear:both"></div>`;
@@ -298,10 +339,12 @@ function renderMessages(messages, history) {
     message_div.dataset["ts"] = message.ts
     message_div.className = "message";
     message_div.innerHTML = message_html;
-    if (history) {
+    if (renderType == "history") {
       chat.prepend(message_div);
-    } else {
+    } else if(renderType == "standard") {
       chat.append(message_div);
+    } else if(renderType == "replies") {
+      appendTo.append(message_div);
     }
   }
 
@@ -353,7 +396,7 @@ function sendMessage(message) {
     client_msg_id: gbl_message_id,
     ts: Date.now()
   }];
-  renderMessages(messagesToRender, false);
+  renderMessages(messagesToRender, "standard");
 }
 
 
@@ -491,6 +534,17 @@ document.getElementById('channel_chat').addEventListener('click', function(event
     }
 
     event.stopPropagation();
+    return;
+  }
+
+  var closest_message_replies = event.target.closest('.message_replies');
+  if(closest_message_replies) {
+    console.log("message replies clicked");
+    var message_div = closest_message_replies.closest("div.message");
+    var replies_ts = message_div.dataset.ts;
+    getConversationReplies(current_channel, replies_ts, closest_message_replies);
+    event.stopPropagation();
+    return;
   }
 });
 
@@ -502,7 +556,7 @@ document.getElementById('emoji_picker').addEventListener('click', function(event
     return;
   }
   react(emoji, current_channel, react_ts, "add");
-  show_reaction(emoji, current_channel, react_ts);
+  show_reaction(emoji, current_channel, react_ts, my_user_id);
   document.getElementById('emoji_picker').style.display = "none";
 });
 
