@@ -540,11 +540,12 @@ document.getElementById('channel_chat').addEventListener('click', function(event
     return;
   }
 
-  var closest_message_replies = event.target.closest('.message_replies');
-  if(closest_message_replies) {
+  var closest_num_replies = event.target.closest('.number_of_replies');
+  if(closest_num_replies) {
     console.log("message replies clicked");
-    var message_div = closest_message_replies.closest("div.message");
+    var message_div = closest_num_replies.closest("div.message");
     var replies_ts = message_div.dataset.ts;
+    var closest_message_replies = closest_num_replies.closest('div.message_replies');
     closest_message_replies.querySelectorAll('div.message').forEach(function(el) {
       el.remove();
     });
